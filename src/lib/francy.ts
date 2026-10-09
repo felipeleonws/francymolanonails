@@ -20,7 +20,7 @@ export const FRANCY = {
   priceRange: '$$',
   currency: 'COP',
   closing: '18:00',
-  url: 'https://francy-molano.vercel.app',
+  url: 'https://francymolanonails.vercel.app',
   seoTitle: 'Uñas Semipermanentes en Paipa | Francy Molano',
   seoDescription:
     'Estudio de uñas en Paipa, Boyacá. Manicure, semipermanente, acrílicas, pedicure spa, cejas y pestañas con producto profesional. Agenda tu cita por WhatsApp.',

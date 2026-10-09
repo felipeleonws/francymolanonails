@@ -6,7 +6,7 @@ import icon from 'astro-icon';
 
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://francy-molano.vercel.app',
+  site: 'https://francymolanonails.vercel.app',
   vite: {
     plugins: [tailwindcss()]
   },
