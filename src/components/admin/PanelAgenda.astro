@@ -658,7 +658,7 @@ const ESTADOS: Record<string, { label: string; color: string; bg: string }> = {
       qsa('[data-cita]').forEach((b) => b.addEventListener('click', () => abrirCita(b.dataset.cita)));
       qsa('[data-dia]').forEach((b) => b.addEventListener('click', () => { ancla = parse(b.dataset.dia); vista = 'dia'; sincronizarVistas(); recargar().catch((e) => toast(e.message)); }));
 
-      qsa('[data-estado]').forEach((b) => b.addEventListener('click', () => {
+      Array.from(document.querySelectorAll('[data-estado]')).forEach((b) => b.addEventListener('click', () => {
         const c = citas.find((x) => x.id === els.sheetBody.dataset.cita);
         if (!c) return;
         c.estado = b.dataset.estado;
@@ -667,7 +667,7 @@ const ESTADOS: Record<string, { label: string; color: string; bg: string }> = {
         persistirCita(c).catch((e) => { toast(e.message); recargar().catch(() => {}); });
       }));
 
-      qsa('[data-acc]').forEach((b) => b.addEventListener('click', () => {
+      Array.from(document.querySelectorAll('[data-acc]')).forEach((b) => b.addEventListener('click', () => {
         const a = b.dataset.acc;
         const id = els.sheetBody.dataset.cita;
 
@@ -739,7 +739,7 @@ const ESTADOS: Record<string, { label: string; color: string; bg: string }> = {
     qs('[data-action="next"]').addEventListener('click', () => mover(1));
     qs('[data-action="hoy"]').addEventListener('click', () => { ancla = new Date(); recargar().catch((e) => toast(e.message)); });
     qs('[data-action="nueva"]').addEventListener('click', abrirNueva);
-    qs('[data-action="cerrar-sheet"]').addEventListener('click', cerrarSheet);
+    document.querySelector('[data-action="cerrar-sheet"]').addEventListener('click', cerrarSheet);
     els.backdrop.addEventListener('click', cerrarSheet);
     qs('[data-action="recargar"]').addEventListener('click', () => { recargar().catch((e) => toast(e.message)); });
     qs('[data-action="equipo"]').addEventListener('click', abrirEquipo);
