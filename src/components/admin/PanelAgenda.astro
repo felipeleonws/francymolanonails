@@ -77,7 +77,7 @@ const ESTADOS: Record<string, { label: string; color: string; bg: string }> = {
 </div>
 
 <div class="fl-login" data-login hidden>
-  <div class="fl-login-card">
+  <div class="fl-login-card" data-login-main>
     <p class="fl-login-eyebrow">Francy Molano · Agenda del equipo</p>
     <h2 class="fl-login-title">Entrar</h2>
     <label class="fl-lb">Correo</label>
@@ -87,6 +87,26 @@ const ESTADOS: Record<string, { label: string; color: string; bg: string }> = {
     <p class="fl-login-err" data-login-err hidden></p>
     <button type="button" class="fl-save" data-action="entrar">Entrar</button>
     <button type="button" class="fl-login-swap" data-action="modo">¿Primera vez? Crea tu cuenta</button>
+    <button type="button" class="fl-login-swap" data-action="recuperar">¿Olvidaste tu contraseña?</button>
+  </div>
+  <div class="fl-login-card" data-login-recuperar hidden>
+    <p class="fl-login-eyebrow">Recuperar acceso</p>
+    <h2 class="fl-login-title">Revisa tu correo</h2>
+    <label class="fl-lb">Correo de tu cuenta</label>
+    <input class="fl-in" name="rec-email" type="email" autocomplete="username" placeholder="tu@correo.com" />
+    <p class="fl-login-err" data-rec-err hidden></p>
+    <p class="fl-login-ok" data-rec-ok hidden>Te enviamos el enlace. Ábrelo y crea tu nueva contraseña.</p>
+    <button type="button" class="fl-save" data-action="enviar-rec">Enviar enlace</button>
+    <button type="button" class="fl-login-swap" data-action="volver">Volver a entrar</button>
+  </div>
+  <div class="fl-login-card" data-login-reset hidden>
+    <p class="fl-login-eyebrow">Nueva contraseña</p>
+    <h2 class="fl-login-title">Elige tu clave</h2>
+    <label class="fl-lb">Nueva contraseña (mín. 6)</label>
+    <input class="fl-in" name="nueva-clave" type="password" autocomplete="new-password" placeholder="••••••••" />
+    <p class="fl-login-err" data-reset-err hidden></p>
+    <button type="button" class="fl-save" data-action="guardar-clave">Guardar y entrar</button>
+  </div>
   </div>
 </div>
 
@@ -271,6 +291,7 @@ const ESTADOS: Record<string, { label: string; color: string; bg: string }> = {
       root.style.display = 'none';
       const l = document.querySelector('[data-login]');
       l.hidden = false;
+      tarjetasLogin('main');
       const e = l.querySelector('[data-login-err]');
       if (msg) { e.textContent = msg; e.hidden = false; }
       else e.hidden = true;
@@ -341,6 +362,58 @@ const ESTADOS: Record<string, { label: string; color: string; bg: string }> = {
       } catch (e) { err.textContent = (e && e.message) || 'No se pudo entrar'; err.hidden = false; }
     }
     const HORARIO_BASE = [1, 2, 3, 4, 5, 6].map((d) => ({ dia: d, apertura: 540, cierre: 1080, pausa: { inicio: 750, fin: 840 } }));
+    function tarjetasLogin(cual) {
+      const l = document.querySelector('[data-login]');
+      l.querySelector('[data-login-main]').hidden = cual !== 'main';
+      l.querySelector('[data-login-recuperar]').hidden = cual !== 'recuperar';
+      l.querySelector('[data-login-reset]').hidden = cual !== 'reset';
+    }
+    async function enviarRecuperacion() {
+      const l = document.querySelector('[data-login]');
+      const email = (l.querySelector('[name="rec-email"]').value || '').trim();
+      const err = l.querySelector('[data-rec-err]');
+      const ok = l.querySelector('[data-rec-ok]');
+      err.hidden = true; ok.hidden = true;
+      try {
+        if (!email) throw new Error('Escribe el correo de tu cuenta');
+        const r = await fetch(SB_URL + '/auth/v1/recover', {
+          method: 'POST', headers: headers(false),
+          body: JSON.stringify({ email }),
+        });
+        if (!r.ok) throw new Error('No se pudo enviar. Revisa que el correo esté bien escrito.');
+        ok.hidden = false;
+      } catch (e) { err.textContent = (e && e.message) || 'No se pudo enviar'; err.hidden = false; }
+    }
+    async function guardarNuevaClave() {
+      const l = document.querySelector('[data-login]');
+      const clave = l.querySelector('[name="nueva-clave"]').value || '';
+      const err = l.querySelector('[data-reset-err]');
+      err.hidden = true;
+      try {
+        if (clave.length < 6) throw new Error('Mínimo 6 caracteres');
+        const r = await fetch(SB_URL + '/auth/v1/user', {
+          method: 'PUT', headers: Object.assign(headers(true), {}),
+          body: JSON.stringify({ password: clave }),
+        });
+        if (!r.ok) throw new Error('El enlace venció. Pide otro e intenta de nuevo.');
+        const me = await (await fetch(SB_URL + '/auth/v1/user', { headers: headers(true) })).json();
+        const email = (me && me.email) || '';
+        try { localStorage.setItem(SES_TOK, token); localStorage.setItem(SES_EMAIL, email); } catch (e) {}
+        try { history.replaceState(null, '', location.pathname); } catch (e) {}
+        const bueno = await arrancar(email);
+        if (!bueno) { salir(); tarjetasLogin('main'); throw new Error('Tu cuenta no está activa en el equipo'); }
+      } catch (e) { err.textContent = (e && e.message) || 'No se pudo guardar'; err.hidden = false; }
+    }
+    function hashRecuperacion() {
+      try {
+        const h = location.hash || '';
+        if (h.indexOf('access_token=') < 0) return null;
+        const partes = h.replace(/^#/, '').split('&');
+        const obj = {};
+        partes.forEach((p) => { const kv = p.split('='); obj[kv[0]] = decodeURIComponent(kv[1] || ''); });
+        return obj.access_token ? obj : null;
+      } catch (e) { return null; }
+    }
     const COLORES = ['#8BA99A', '#25D366', '#E8A090', '#6D5BFF', '#E9B44C', '#4CC9F0'];
     function abrirEquipo() {
       if (!perfil || !perfil.es_admin) return;
@@ -374,6 +447,7 @@ const ESTADOS: Record<string, { label: string; color: string; bg: string }> = {
       html += '<label class="fl-lb">Color</label><input class="fl-in" name="eq-color" type="color" value="' + esc(v.color || '#8BA99A') + '" />';
       html += '<label class="fl-check"><input type="checkbox" name="eq-activo"' + (v.activo ? ' checked' : '') + ' /><span>Activa (recibe citas)</span></label>';
       html += '<button type="button" class="fl-save" data-acc="equipo-guardar" data-id="' + v.id + '">Guardar</button>';
+      if (!esNuevo) html += '<button type="button" class="fl-del" data-acc="equipo-eliminar" data-id="' + v.id + '">Eliminar definitivamente</button>';
       html += '</div>';
       els.sheetBody.innerHTML = html;
       els.sheetBody.dataset.cita = '';
@@ -569,10 +643,12 @@ const ESTADOS: Record<string, { label: string; color: string; bg: string }> = {
           const conCita = del.filter((c) => !c.esWalkIn).length;
           const walk = del.filter((c) => c.esWalkIn).length;
           const fuera = parse(f).getUTCMonth() !== ancla.getUTCMonth();
+          const ids = [];
+          for (const c of del) if (ids.indexOf(c.profesionalId) < 0) ids.push(c.profesionalId);
+          const total = del.length;
           html += '<button type="button" class="fl-mcell' + (f === hoyIso ? ' is-today' : '') + (fuera ? ' is-off' : '') + '" data-dia="' + f + '">' +
-            '<span class="fl-mcell-d">' + parse(f).getUTCDate() + '</span>' +
-            (conCita || walk ? '<span class="fl-mdots">' + professionalDots(del) + (walk ? '<i class="fl-mdot is-walk"></i>' : '') + '</span>' : '') +
-            (conCita ? '<span class="fl-mcell-n">' + conCita + '</span>' : '') +
+            '<span class="fl-mcell-d' + (total ? ' is-busy' : '') + '"' + (total ? ' style="' + splitFondo(ids.map(proColor)) + '"' : '') + '>' + parse(f).getUTCDate() + '</span>' +
+            (total ? '<span class="fl-mcell-n">' + total + '</span>' : '') +
           '</button>';
         }
         html += '</div>';
@@ -580,10 +656,13 @@ const ESTADOS: Record<string, { label: string; color: string; bg: string }> = {
       els.body.innerHTML = html;
     }
 
-    function professionalDots(del) {
-      const ids = [];
-      for (const c of del) if (ids.indexOf(c.profesionalId) < 0) ids.push(c.profesionalId);
-      return ids.slice(0, 3).map((id) => '<i class="fl-mdot" style="background:' + proColor(id) + '"></i>').join('');
+    function splitFondo(colores) {
+      const cs = (colores || []).filter(Boolean);
+      if (!cs.length) return '';
+      if (cs.length === 1) return 'background:' + cs[0] + ';';
+      if (cs.length === 2) return 'background:linear-gradient(135deg,' + cs[0] + ' 50%,' + cs[1] + ' 50%);';
+      const n = cs.length;
+      return 'background:conic-gradient(from 45deg,' + cs.map((c, i) => c + ' 0 ' + Math.round(((i + 1) / n) * 100) + '%')).join(',') + ');';
     }
 
     // ── pintado: hoja de detalle ────────────────────────────────
@@ -739,6 +818,19 @@ const ESTADOS: Record<string, { label: string; color: string; bg: string }> = {
           persistirCita(c).catch((e) => { toast(e.message); recargar().catch(() => {}); });
         }
         if (a === 'equipo-nuevo') { abrirEditarEquipo('__nuevo__'); return; }
+        if (a === 'equipo-eliminar') {
+          const pid = b.dataset.id;
+          if (perfil && pid === perfil.id) { toast('No puedes eliminarte a ti misma'); return; }
+          const p = profesionales.find((x) => x.id === pid);
+          if (p && p.es_admin && profesionales.filter((x) => x.es_admin && x.activo).length <= 1) { toast('No puedes eliminar a la única admin'); return; }
+          if (citas.some((x) => x.profesionalId === pid)) { toast('Tiene citas en el historial: desactívala en vez de eliminarla'); return; }
+          if (!window.confirm('¿Eliminar a ' + ((p && p.nombre) || 'esta profesional') + ' del equipo?')) return;
+          sbBorrar('profesionales', pid).then(() => {
+            profesionales = profesionales.filter((x) => x.id !== pid);
+            abrirEquipo(); pintar();
+          }).catch((e) => { toast(e.message); recargar().catch(() => {}); });
+          return;
+        }
         if (a === 'equipo-guardar') {
           const q = (n) => els.sheetBody.querySelector('[name="' + n + '"]');
           const pid = b.dataset.id;
@@ -779,11 +871,22 @@ const ESTADOS: Record<string, { label: string; color: string; bg: string }> = {
     qs('[data-action="salir"]').addEventListener('click', () => { salir(); mostrarLogin(); });
     document.querySelector('[data-action="entrar"]').addEventListener('click', intentarEntrar);
     document.querySelector('[data-action="modo"]').addEventListener('click', () => { modo = modo === 'entrar' ? 'registrar' : 'entrar'; pintarModo(); });
+    document.querySelector('[data-action="recuperar"]').addEventListener('click', () => { tarjetasLogin('recuperar'); });
+    document.querySelector('[data-action="volver"]').addEventListener('click', () => { tarjetasLogin('main'); });
+    document.querySelector('[data-action="enviar-rec"]').addEventListener('click', enviarRecuperacion);
+    document.querySelector('[data-action="guardar-clave"]').addEventListener('click', guardarNuevaClave);
     document.querySelector('[data-login]').addEventListener('keydown', (e) => { if (e.key === 'Enter') intentarEntrar(); });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') cerrarSheet(); });
 
     (function boot() {
       if (!sbListo()) { mostrarLogin('Falta configurar la conexión (avísale a Felipe)'); return; }
+      const rec = hashRecuperacion();
+      if (rec && rec.access_token) {
+        token = rec.access_token;
+        mostrarLogin();
+        tarjetasLogin('reset');
+        return;
+      }
       let t = null; let em = null;
       try { t = localStorage.getItem(SES_TOK); em = localStorage.getItem(SES_EMAIL); } catch (e) {}
       if (t && em) {
@@ -980,6 +1083,7 @@ const ESTADOS: Record<string, { label: string; color: string; bg: string }> = {
   .fl-mcell.is-today { border-color: var(--ink); border-width: 2px; }
   .fl-mcell.is-off { opacity: 0.35; }
   .fl-mcell-d { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .fl-mcell-d.is-busy { color: #fff; border-radius: 8px; padding: 1px 7px; }
   .fl-mdots { display: flex; gap: 2px; flex-wrap: wrap; justify-content: center; }
   .fl-mdot { width: 5px; height: 5px; border-radius: 50%; display: block; }
   .fl-mdot.is-walk { background: #C9BFAF !important; }
@@ -1091,6 +1195,8 @@ const ESTADOS: Record<string, { label: string; color: string; bg: string }> = {
   .fl-login-swap { display: block; width: 100%; margin-top: 12px; background: none; border: none; color: #8BA99A; font-size: 13px; font-weight: 700; cursor: pointer; }
   .fl-login-err { color: #a83f2f; font-size: 13px; margin: 10px 0 0; }
   .fl-login-err[hidden] { display: none; }
+  .fl-login-ok { color: #2f6f4f; font-size: 13px; margin: 10px 0 0; }
+  .fl-login-ok[hidden] { display: none; }
   .fl-toast {
     position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
     z-index: 95; max-width: min(92vw, 420px);
@@ -1105,4 +1211,5 @@ const ESTADOS: Record<string, { label: string; color: string; bg: string }> = {
   .fl-equipo-tag { font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; background: #8BA99A; color: #fff; border-radius: 999px; padding: 2px 8px; }
   .fl-equipo-tag.off { background: rgba(20,20,20,0.15); color: #141414; }
   .fl-equipo-btn { margin-left: auto; font-size: 12px; font-weight: 700; border: 1px solid rgba(20,20,20,0.15); background: #fff; border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+  .fl-del { display: block; width: 100%; margin-top: 10px; padding: 12px; border-radius: 14px; border: 1px solid #d9a79e; background: #FBF1EF; color: #a83f2f; font-size: 14px; font-weight: 700; cursor: pointer; }
 </style>
