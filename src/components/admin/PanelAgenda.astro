@@ -762,7 +762,13 @@ const ESTADOS: Record<string, { label: string; color: string; bg: string }> = {
   })();
 </script>
 
-<style>
+<style is:global>
+  :root {
+    --ink: #141414;
+    --base: #F5F0E8;
+    --borde: #E4DDD2;
+    --cta: #25D366;
+  }
   .fl-panel {
     --ink: #141414;
     --base: #F5F0E8;
@@ -997,14 +1003,17 @@ const ESTADOS: Record<string, { label: string; color: string; bg: string }> = {
   .fl-acc-del { color: #a83f2f; background: #FBF1EF; border-color: #d9a79e; }
 
   .fl-form { display: flex; flex-direction: column; gap: 4px; }
-  .fl-lb { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; color: #8B8377; margin-top: 12px; }
+  .fl-lb { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; color: #8B8377; margin-top: 12px; }
   .fl-in {
-    width: 100%; padding: 11px 13px; font-size: 14px; font-family: inherit;
+    display: block; width: 100%; box-sizing: border-box;
+    padding: 12px 13px; font-size: 16px; font-family: inherit;
     border: 1px solid var(--borde); border-radius: 12px; background: #FCFAF7; color: var(--ink);
   }
   .fl-in:focus { outline: 2px solid #8BA99A; outline-offset: 1px; border-color: transparent; }
+  .fl-in[type="color"] { padding: 4px 8px; height: 46px; }
   .fl-check { display: flex; align-items: center; gap: 9px; margin-top: 16px; font-size: 13px; }
   .fl-save {
+    display: block; width: 100%;
     margin-top: 18px; padding: 14px; border-radius: 14px; border: none;
     background: var(--cta); color: #141414; font-size: 15px; font-weight: 700; cursor: pointer;
   }
