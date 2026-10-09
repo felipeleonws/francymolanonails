@@ -86,6 +86,7 @@ const ESTADOS: Record<string, { label: string; color: string; bg: string }> = {
     <input class="fl-in" name="clave" type="password" autocomplete="current-password" placeholder="••••••••" />
     <p class="fl-login-err" data-login-err hidden></p>
     <button type="button" class="fl-save" data-action="entrar">Entrar</button>
+    <button type="button" class="fl-login-swap" data-action="modo">¿Primera vez? Crea tu cuenta</button>
   </div>
 </div>
 
@@ -293,6 +294,32 @@ const ESTADOS: Record<string, { label: string; color: string; bg: string }> = {
       await recargar();
       return true;
     }
+    let modo = 'entrar';
+    function pintarModo() {
+      const l = document.querySelector('[data-login]');
+      l.querySelector('.fl-login-title').textContent = modo === 'entrar' ? 'Entrar' : 'Crear cuenta';
+      l.querySelector('[data-action="entrar"]').textContent = modo === 'entrar' ? 'Entrar' : 'Crear cuenta';
+      l.querySelector('[data-action="modo"]').textContent = modo === 'entrar' ? '¿Primera vez? Crea tu cuenta' : '¿Ya tienes cuenta? Entra';
+      l.querySelector('[data-login-err]').hidden = true;
+    }
+    async function registrarse(email, clave) {
+      const r = await fetch(SB_URL + '/auth/v1/signup', {
+        method: 'POST', headers: headers(false),
+        body: JSON.stringify({ email: email.trim(), password: clave }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        const msg = String((j && (j.msg || j.error || j.message)) || '');
+        if (/already|registr|existe/i.test(msg)) throw new Error('Esa cuenta ya existe, dale a Entrar');
+        throw new Error('No se pudo crear la cuenta');
+      }
+      if (j.session && j.session.access_token) {
+        token = j.session.access_token;
+        try { localStorage.setItem(SES_TOK, token); localStorage.setItem(SES_EMAIL, email.trim()); } catch (e) {}
+        return true;
+      }
+      return false;
+    }
     async function intentarEntrar() {
       const l = document.querySelector('[data-login]');
       const email = l.querySelector('[name="email"]').value || '';
@@ -302,9 +329,15 @@ const ESTADOS: Record<string, { label: string; color: string; bg: string }> = {
       try {
         if (!sbListo()) throw new Error('Falta configurar la conexión (avísale a Felipe)');
         if (!email.trim() || !clave) throw new Error('Escribe tu correo y contraseña');
-        await entrar(email, clave);
+        if (clave.length < 6) throw new Error('La contraseña debe tener mínimo 6 caracteres');
+        if (modo === 'registrar') {
+          const conSesion = await registrarse(email, clave);
+          if (!conSesion) throw new Error('Te enviamos un correo de confirmación. Ábrelo y luego entra.');
+        } else {
+          await entrar(email, clave);
+        }
         const ok = await arrancar(email.trim());
-        if (!ok) { salir(); throw new Error('Tu cuenta no está activa en el equipo'); }
+        if (!ok) { salir(); throw new Error('Ese correo no está registrado en el equipo. Pídele a la admin que te agregue.'); }
       } catch (e) { err.textContent = (e && e.message) || 'No se pudo entrar'; err.hidden = false; }
     }
     const HORARIO_BASE = [1, 2, 3, 4, 5, 6].map((d) => ({ dia: d, apertura: 540, cierre: 1080, pausa: { inicio: 750, fin: 840 } }));
@@ -745,6 +778,7 @@ const ESTADOS: Record<string, { label: string; color: string; bg: string }> = {
     qs('[data-action="equipo"]').addEventListener('click', abrirEquipo);
     qs('[data-action="salir"]').addEventListener('click', () => { salir(); mostrarLogin(); });
     document.querySelector('[data-action="entrar"]').addEventListener('click', intentarEntrar);
+    document.querySelector('[data-action="modo"]').addEventListener('click', () => { modo = modo === 'entrar' ? 'registrar' : 'entrar'; pintarModo(); });
     document.querySelector('[data-login]').addEventListener('keydown', (e) => { if (e.key === 'Enter') intentarEntrar(); });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') cerrarSheet(); });
 
@@ -1054,6 +1088,7 @@ const ESTADOS: Record<string, { label: string; color: string; bg: string }> = {
   .fl-login .fl-lb { display: block; font-size: 13px; font-weight: 600; color: #141414; margin: 14px 0 6px; }
   .fl-login .fl-in { width: 100%; box-sizing: border-box; }
   .fl-login .fl-save { width: 100%; margin-top: 18px; }
+  .fl-login-swap { display: block; width: 100%; margin-top: 12px; background: none; border: none; color: #8BA99A; font-size: 13px; font-weight: 700; cursor: pointer; }
   .fl-login-err { color: #a83f2f; font-size: 13px; margin: 10px 0 0; }
   .fl-login-err[hidden] { display: none; }
   .fl-toast {
