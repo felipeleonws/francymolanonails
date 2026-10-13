@@ -682,6 +682,8 @@ const ESTADOS: Record<string, { label: string; color: string; bg: string }> = {
         row('Estado', e.label) +
       '</div>';
 
+      html += '<label class="fl-lb">Precio cobrado (COP)</label><input class="fl-in" name="precio" type="number" min="0" step="1000" value="' + (c.precio || 0) + '" />';
+
       html += '<p class="fl-sheet-l">Cambiar estado</p><div class="fl-acciones">';
       for (const k of Object.keys(ESTADOS_MAP)) {
         const st = ESTADOS_MAP[k];
@@ -773,6 +775,8 @@ const ESTADOS: Record<string, { label: string; color: string; bg: string }> = {
       Array.from(document.querySelectorAll('[data-estado]')).forEach((b) => b.addEventListener('click', () => {
         const c = citas.find((x) => x.id === els.sheetBody.dataset.cita);
         if (!c) return;
+        const inp = els.sheetBody.querySelector('[name="precio"]');
+        if (inp) c.precio = Math.max(0, Number(inp.value) || 0);
         c.estado = b.dataset.estado;
         cerrarSheet();
         pintar();
