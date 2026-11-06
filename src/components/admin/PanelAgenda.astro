@@ -165,6 +165,7 @@ const ESTADOS: Record<string, { label: string; color: string; bg: string }> = {
     }
     async function sbGet(tabla, query) {
       const r = await fetch(SB_URL + '/rest/v1/' + tabla + '?' + query, { headers: headers(true) });
+      if (r.status === 401) { salir(); mostrarLogin('Tu sesión venció, entra de nuevo'); throw new Error('Sesión vencida'); }
       if (!r.ok) throw new Error('Error ' + r.status + ' leyendo datos');
       return r.json();
     }
@@ -174,6 +175,7 @@ const ESTADOS: Record<string, { label: string; color: string; bg: string }> = {
         headers: Object.assign(headers(true), { Prefer: 'resolution=merge-duplicates' }),
         body: JSON.stringify(fila),
       });
+      if (r.status === 401) { salir(); mostrarLogin('Tu sesión venció, entra de nuevo'); throw new Error('Sesión vencida'); }
       if (!r.ok) throw new Error('No se pudo guardar (' + r.status + ')');
     }
     async function sbBorrar(tabla, id) {
@@ -707,8 +709,10 @@ const ESTADOS: Record<string, { label: string; color: string; bg: string }> = {
     }
 
     function abrirNueva() {
+      const activas = profesionales.filter((p) => p.activo);
+      if (!activas.length) { toast('Primero agrega una profesional activa en Equipo'); return; }
+      const proId = filtroPro !== 'todos' ? filtroPro : activas[0].id;
       const fecha = iso(ancla);
-      const proId = filtroPro !== 'todos' ? filtroPro : (profesionales.find((p) => p.activo) || {}).id;
       els.sheetEyebrow.textContent = fmtFechaLarga(parse(fecha));
       els.sheetTitle.textContent = 'Nueva cita';
 
@@ -788,6 +792,7 @@ const ESTADOS: Record<string, { label: string; color: string; bg: string }> = {
         const id = els.sheetBody.dataset.cita;
 
         if (a === 'borrar') {
+          if (!window.confirm('¿Eliminar esta cita? No se puede deshacer.')) return;
           citas = citas.filter((x) => x.id !== id);
           cerrarSheet(); pintar();
           sbBorrar('citas', id).catch((e) => { toast(e.message); recargar().catch(() => {}); });
@@ -807,13 +812,22 @@ const ESTADOS: Record<string, { label: string; color: string; bg: string }> = {
           if (!nombre) { q('cliente').focus(); return; }
           const serv = (q('serv').value || '').trim() || 'Servicio';
           const hm = (q('hora').value || '09:00').split(':');
+          const inicio = Number(hm[0]) * 60 + Number(hm[1]);
+          const duracion = Math.max(10, Number(q('dur').value) || 60);
+          const choque = citas.find((x) =>
+            x.profesionalId === q('pro').value &&
+            x.fecha === (q('fecha').value || iso(ancla)) &&
+            ['pendiente', 'confirmada', 'completada'].indexOf(x.estado) >= 0 &&
+            inicio < x.inicio + x.duracion && x.inicio < inicio + duracion
+          );
+          if (choque && !window.confirm('Se cruza con ' + choque.clienteNombre + ' (' + hhmm(choque.inicio) + '). ¿Guardar igual?')) return;
           const c = {
             id: 'u' + Date.now(), profesionalId: q('pro').value, servicioId: 'manual',
             varianteId: '', varianteNombre: serv,
             clienteNombre: nombre, clienteTelefono: (q('tel').value || '').trim(),
             fecha: q('fecha').value || iso(ancla),
-            inicio: Number(hm[0]) * 60 + Number(hm[1]),
-            duracion: Math.max(10, Number(q('dur').value) || 60),
+            inicio: inicio,
+            duracion: duracion,
             precio: Math.max(0, Number(q('precio').value) || 0), estado: 'confirmada',
             creadaEn: new Date().toISOString(), esWalkIn: q('walk').checked,
           };
