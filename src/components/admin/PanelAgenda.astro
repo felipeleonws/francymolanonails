@@ -107,7 +107,6 @@ const ESTADOS: Record<string, { label: string; color: string; bg: string }> = {
     <p class="fl-login-err" data-reset-err hidden></p>
     <button type="button" class="fl-save" data-action="guardar-clave">Guardar y entrar</button>
   </div>
-  </div>
 </div>
 
 <div class="fl-toast" data-toast hidden></div>
@@ -664,7 +663,7 @@ const ESTADOS: Record<string, { label: string; color: string; bg: string }> = {
       if (cs.length === 1) return 'background:' + cs[0] + ';';
       if (cs.length === 2) return 'background:linear-gradient(135deg,' + cs[0] + ' 50%,' + cs[1] + ' 50%);';
       const n = cs.length;
-      return 'background:conic-gradient(from 45deg,' + cs.map((c, i) => c + ' 0 ' + Math.round(((i + 1) / n) * 100) + '%')).join(',') + ');';
+      return 'background:conic-gradient(from 45deg,' + cs.map((c, i) => c + ' 0 ' + Math.round(((i + 1) / n) * 100) + '%').join(',') + ');';
     }
 
     // ── pintado: hoja de detalle ────────────────────────────────
